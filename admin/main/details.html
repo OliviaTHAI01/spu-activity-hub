@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Details - SPU Activity Hub</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body class="details-page-body">
+    <div class="details-container">
+        <div class="poster-card">
+            <img src="https://i.imgur.com/uG9n1Yn.png" alt="Tech Talk Poster">
+            <h3>กิจกรรม Tech Talk</h3>
+            <p>กิจกรรมพัฒนาผู้เรียน เป็นกิจกรรมการพูดคุยเกี่ยวกับการพัฒนาของเทคโนโลยีในปัจจุบัน</p>
+        </div>
+        <div class="details-content">
+            <h1>รายละเอียดของกิจกรรม</h1>
+            <div class="info-box"><p>ชั่วโมงที่จะได้รับจากกิจกรรม</p><div class="info-value" id="activity-hours">... ชั่วโมง</div></div>
+            <div class="info-box"><p>สถานที่จัดกิจกรรม</p><div class="info-value">มหาวิทยาลัยศรีปทุม</div></div>
+            <div class="info-box"><p>วันที่และเวลาต้องเข้าร่วมกิจกรรม</p><div class="info-value">16 ตุลาคม 2568<br>เวลา 13:00 - 14:40 น.</div></div>
+            <div class="info-box">
+                <p>form สำหรับลงทะเบียนเข้าร่วมกิจกรรม</p>
+                <div class="info-value wide" id="form-link-container">
+                    <a href="#" id="form-link" target="_blank">ยังไม่มีลิงก์</a>
+                    <button id="edit-link-btn" class="edit-btn">แก้ไข</button>
+                </div>
+            </div>
+            <div class="action-buttons">
+                <button id="submit-completion-btn" class="custom-btn submit-btn">ยื่นเรื่องจบกิจกรรม</button>
+                <button id="back-to-main-btn" class="custom-btn back-btn">กลับหน้าหลัก</button>
+            </div>
+            <a href="#" class="footer-link">โปรดแต่งกายสุภาพ</a>
+        </div>
+    </div>
+
+    <!-- Modal for editing the form link -->
+    <div id="link-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>แก้ไขลิงก์ฟอร์ม</h2>
+            <p class="modal-description">วาง URL ของฟอร์มลงทะเบียนที่นี่</p>
+            <div class="modal-form-group">
+                <input type="url" id="link-input" placeholder="https://forms.gle/example">
+                <button id="save-link-btn" class="save-btn">บันทึก</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

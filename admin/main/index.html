@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - SPU Activity Hub</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <!-- Leaflet (OpenStreetMap) - ฟรี ไม่ต้องมี API key, สามารถคลิกเลือกตำแหน่งได้ -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body class="dashboard-page-body">
+    <div class="main-content">
+        <div class="header">
+            <div class="search-bar">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="สามารถค้นหากิจกรรมได้ที่นี่">
+            </div>
+        </div>
+        <div class="header-actions" style="display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: center;">
+            <button id="add-activity-btn" class="add-activity-btn">
+                <i class="fas fa-plus"></i> เพิ่มกิจกรรมใหม่
+            </button>
+            <button id="view-archived-btn" class="view-archived-btn">
+                <i class="fas fa-archive"></i> ดูประวัติกิจกรรม
+            </button>
+        </div>
+        <div class="activity-grid" id="activity-grid">
+            <!-- All activity cards will be generated here by JavaScript -->
+        </div>
+    </div>
+    <div class="sidebar">
+        <img src="../../images/logos/spu_logo.png" alt="Profile Picture" class="profile-pic" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%22120%22%3E%3Ccircle cx=%2260%22 cy=%2260%22 r=%2260%22 fill=%22%23e91e63%22/%3E%3Ctext x=%2260%22 y=%2270%22 font-size=%2240%22 text-anchor=%22middle%22 fill=%22white%22%3EAdmin%3C/text%3E%3C/svg%3E'">
+        <div class="profile-info">
+            <p>ชื่ออาจารย์ : คณบดีตูน</p>
+            <p>อาจารย์สาขา : Computer Science</p>
+        </div>
+        <button id="logout-btn" class="logout-btn">Logout</button>
+    </div>
+    
+    <!-- Floating Action Button for Adding Activity -->
+
+    <!-- Modal for adding a new activity -->
+    <div id="add-activity-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>เพิ่มกิจกรรมใหม่</h2>
+            <form id="add-activity-form">
+                <div class="form-group">
+                    <label for="activity-title">ชื่อกิจกรรม:</label>
+                    <input type="text" id="activity-title" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="activity-desc">คำอธิบาย:</label>
+                    <textarea id="activity-desc" rows="3" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="activity-img">URL รูปภาพ:</label>
+                    <input type="url" id="activity-img" placeholder="https://example.com/image.png" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="activity-form-link">ลิงค์ฟอร์มลงทะเบียน:</label>
+                    <input type="url" id="activity-form-link" placeholder="https://forms.gle/example" required>
+                    <small style="color: #666; font-size: 12px;">ลิงค์ Google Form หรือฟอร์มอื่นๆ สำหรับลงทะเบียนเข้าร่วมกิจกรรม</small>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="activity-hours">จำนวนชั่วโมง:</label>
+                        <input type="number" id="activity-hours" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="activity-slots">จำนวนที่รับ (Slots):</label>
+                        <input type="number" id="activity-slots" min="1" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="activity-date">วันที่จัดกิจกรรม:</label>
+                        <input type="date" id="activity-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="activity-time">เวลาเริ่มต้น:</label>
+                        <input type="time" id="activity-time" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="activity-location">สถานที่จัดกิจกรรม:</label>
+                    <input type="text" id="activity-location" placeholder="เช่น มหาวิทยาลัยศรีปทุม" required>
+                    <small style="color: #666; font-size: 12px;">กรอกชื่อสถานที่</small>
+                </div>
+
+                <div class="form-group">
+                    <label>เลือกตำแหน่งจากแผนที่:</label>
+                    <div id="map-picker" style="width: 100%; height: 300px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; z-index: 1;"></div>
+                    <button type="button" id="pick-location-btn" style="margin-top: 10px; padding: 8px 16px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        <i class="fas fa-map-marker-alt"></i> ค้นหาสถานที่จากชื่อ
+                    </button>
+                    <input type="hidden" id="activity-lat">
+                    <input type="hidden" id="activity-lng">
+                    <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">คลิกบนแผนที่เพื่อเลือกตำแหน่ง หรือลากหมุดเพื่อย้ายตำแหน่ง หรือค้นหาสถานที่จากชื่อ</small>
+                    <div style="margin-top: 10px; display: flex; gap: 10px;">
+                        <input type="number" id="activity-lat-input" step="any" placeholder="ละติจูด (Latitude)" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                        <input type="number" id="activity-lng-input" step="any" placeholder="ลองจิจูด (Longitude)" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                        <button type="button" id="update-coords-btn" style="padding: 8px 16px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            อัปเดตแผนที่
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn">บันทึกกิจกรรม</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for viewing participants -->
+    <div id="participants-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <span class="close-btn" id="close-participants-modal">&times;</span>
+            <h2 id="participants-modal-title">รายชื่อผู้เข้าร่วมกิจกรรม</h2>
+            <div class="participants-info">
+                <p class="participants-count">จำนวนผู้เข้าร่วม: <span id="participants-count">0</span> / <span id="max-slots">0</span></p>
+            </div>
+            <div class="participants-list" id="participants-list">
+                <!-- รายชื่อจะถูกแสดงที่นี่ -->
+            </div>
+            <div class="modal-actions">
+                <button class="close-participants-btn" id="close-participants-btn">ปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for editing activity -->
+    <div id="edit-activity-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <span class="close-btn" id="close-edit-modal">&times;</span>
+            <h2>แก้ไขรายละเอียดกิจกรรม</h2>
+            <form id="edit-activity-form">
+                <div class="form-group">
+                    <label for="edit-activity-title">ชื่อกิจกรรม:</label>
+                    <input type="text" id="edit-activity-title" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit-activity-desc">คำอธิบาย:</label>
+                    <textarea id="edit-activity-desc" rows="3" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-activity-img">URL รูปภาพ:</label>
+                    <input type="url" id="edit-activity-img" placeholder="https://example.com/image.png" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-activity-form-link">ลิงค์ฟอร์มลงทะเบียน:</label>
+                    <input type="url" id="edit-activity-form-link" placeholder="https://forms.gle/example" required>
+                    <small style="color: #666; font-size: 12px;">ลิงค์ Google Form หรือฟอร์มอื่นๆ สำหรับลงทะเบียนเข้าร่วมกิจกรรม</small>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-activity-hours">จำนวนชั่วโมง:</label>
+                        <input type="number" id="edit-activity-hours" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-activity-slots">จำนวนที่รับ (Slots):</label>
+                        <input type="number" id="edit-activity-slots" min="1" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-activity-date">วันที่จัดกิจกรรม:</label>
+                        <input type="date" id="edit-activity-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-activity-time">เวลาเริ่มต้น:</label>
+                        <input type="time" id="edit-activity-time" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-activity-location">สถานที่จัดกิจกรรม:</label>
+                    <input type="text" id="edit-activity-location" placeholder="เช่น มหาวิทยาลัยศรีปทุม" required>
+                    <small style="color: #666; font-size: 12px;">กรอกชื่อสถานที่</small>
+                </div>
+
+                <div class="form-group">
+                    <label>เลือกตำแหน่งจากแผนที่:</label>
+                    <div id="edit-map-picker" style="width: 100%; height: 300px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; z-index: 1;"></div>
+                    <button type="button" id="edit-pick-location-btn" style="margin-top: 10px; padding: 8px 16px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        <i class="fas fa-map-marker-alt"></i> ค้นหาสถานที่จากชื่อ
+                    </button>
+                    <input type="hidden" id="edit-activity-lat">
+                    <input type="hidden" id="edit-activity-lng">
+                    <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">คลิกบนแผนที่เพื่อเลือกตำแหน่ง หรือลากหมุดเพื่อย้ายตำแหน่ง หรือค้นหาสถานที่จากชื่อ</small>
+                    <div style="margin-top: 10px; display: flex; gap: 10px;">
+                        <input type="number" id="edit-activity-lat-input" step="any" placeholder="ละติจูด (Latitude)" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                        <input type="number" id="edit-activity-lng-input" step="any" placeholder="ลองจิจูด (Longitude)" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                        <button type="button" id="edit-update-coords-btn" style="padding: 8px 16px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            อัปเดตแผนที่
+                        </button>
+                    </div>
+                </div>
+
+                <input type="hidden" id="edit-activity-original-title">
+                <div class="modal-actions">
+                    <button type="button" class="delete-activity-btn" id="delete-activity-btn">
+                        <i class="fas fa-trash"></i> ลบกิจกรรม
+                    </button>
+                    <div style="flex-grow: 1;"></div>
+                    <button type="button" class="cancel-edit-btn" id="cancel-edit-btn">ยกเลิก</button>
+                    <button type="submit" class="submit-btn">บันทึกการแก้ไข</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for viewing archived activities -->
+    <div id="archived-modal" class="modal">
+        <div class="modal-content" style="max-width: 900px; max-height: 80vh; overflow-y: auto;">
+            <span class="close-btn" id="close-archived-modal">&times;</span>
+            <h2>ประวัติกิจกรรมที่เก็บไว้</h2>
+            <div class="archived-info">
+                <p>จำนวนกิจกรรมที่เก็บไว้: <span id="archived-count">0</span></p>
+            </div>
+            <div class="archived-list" id="archived-list">
+                <!-- รายการกิจกรรมที่เก็บไว้จะถูกแสดงที่นี่ -->
+            </div>
+            <div class="modal-actions">
+                <button class="close-archived-btn" id="close-archived-btn">ปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for viewing hour requests -->
+    <div id="hour-requests-modal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <span class="close-btn" id="close-hour-requests-modal">&times;</span>
+            <h2 id="hour-requests-modal-title">การยื่นรับเวลากิจกรรม</h2>
+            <div class="hour-requests-info">
+                <p>จำนวนการยื่นรับเวลา: <span id="hour-requests-count">0</span></p>
+            </div>
+            <div class="hour-requests-list" id="hour-requests-list">
+                <!-- รายการการยื่นรับเวลาจะถูกแสดงที่นี่ -->
+            </div>
+            <div class="modal-actions">
+                <button class="close-hour-requests-btn" id="close-hour-requests-btn">ปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <!-- Seed Data Script - สำหรับสร้างตัวอย่างข้อมูล -->
+    <!-- <script src="../../js/seed-data.js"></script> -->
+</body>
+</html>

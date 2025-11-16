@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SPU Login</title>
+    <link rel="stylesheet" href="css/login.css" />
+    <script src="js/login.js" defer></script>
+  </head>
+  <body>
+    <div class="login-container">
+      <div class="info-section">
+        <div class="logo-box">
+          <img src="img/logo2.png" alt="SPU Logo" class="logo-image" />
+        </div>
+        <div class="background-overlay"></div>
+        <div class="bottom-logo">
+          <img src="img/SIT_black.png" alt="SPU SIT Logo" class="spu-logo-image" />
+        </div>
+        <p class="description">
+          แพลตฟอร์มสำหรับตัวช่วยให้นักศึกษาที่กู้ยืมกยศ. สามารถเข้ามาหากิจกรรมและเก็บชั่วโมงกิจกรรมได้อย่างสะดวกและรวดเร็ว
+        </p>
+      </div>
+
+      <div class="login-section">
+        <div class="login-card">
+          <h1 class="login-title">Login</h1>
+          <form action="#" method="POST" class="login-form" id="loginForm">
+            <div class="form-group">
+              <label for="username" class="input-label">User</label>
+              <input
+                type="text"
+                id="username"
+                name="username"
+                placeholder="ชื่อผู้ใช้งาน"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="password" class="input-label">Password</label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                placeholder="รหัสผ่าน"
+                required
+              />
+            </div>
+
+            <a href="#" class="reset-password">Reset Password</a>
+
+            <button type="submit" class="login-button styled-as-button">
+              เข้าสู่ระบบ
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

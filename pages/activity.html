@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>รายละเอียดกิจกรรม SPU</title>
+    <link rel="stylesheet" href="../css/dashboard.css" />
+    <link rel="stylesheet" href="../css/activity.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <style>
+      /* The Modal (background) */
+      .modal {
+        display: none; /* Hidden by default */
+        position: fixed; /* Stay in place */
+        z-index: 1000; /* Sit on top */
+        left: 0;
+        top: 0;
+        width: 100%; /* Full width */
+        height: 100%; /* Full height */
+        overflow: auto; /* Enable scroll if needed */
+        background-color: rgba(0, 0, 0, 0.7); /* Darker overlay */
+        font-family: sans-serif;
+      }
+
+      /* Modal Content/Box */
+      .modal-content {
+        background-color: #2d2d2d; /* Dark background from screenshot */
+        color: #f1f1f1; /* Light text */
+        margin: 15% auto; /* 15% from the top and centered */
+        padding: 25px 30px;
+        border: 1px solid #555;
+        width: 90%;
+        max-width: 550px;
+        border-radius: 8px;
+        text-align: left;
+        position: relative;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+      }
+      .modal-content p {
+        margin-bottom: 12px;
+        line-height: 1.6;
+      }
+      .modal-content a {
+        color: #61dafb; /* Light blue for links */
+        text-decoration: underline;
+        word-break: break-all; /* Break long links */
+      }
+
+      /* The Close Button */
+      .close-button {
+        color: #aaa;
+        position: absolute;
+        top: 10px;
+        right: 20px;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      .close-button:hover,
+      .close-button:focus {
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="dashboard-container">
+      <i class="fas fa-cog settings-icon" id="settingsToggle"></i>
+      <main class="main-content">
+        <div class="activity-header">
+          <a href="dashboard.html" class="back-to-dashboard-btn">
+            <i class="fas fa-arrow-left"></i>
+            <span>กลับหน้าหลัก</span>
+          </a>
+        </div>
+        <div class="activity-detail-wrapper">
+          <div class="poster-summary">
+            <div class="poster-card">
+              <img
+                id="activity-poster-image"
+                src=""
+                alt="Activity Poster"
+                class="detail-poster-image"
+              />
+              <div class="poster-overlay">
+                <p class="spu-tag">SPU</p>
+                <h2 id="activity-poster-title" class="poster-title">
+                </h2>
+                <p class="speaker-info">Speaker</p>
+                <p id="activity-speaker-name" class="speaker-name"></p>
+                <p id="activity-poster-date" class="poster-date"></p>
+              </div>
+            </div>
+
+            <div id="activity-type" class="activity-type"></div>
+            <p id="activity-description" class="activity-description">
+            </p>
+          </div>
+
+          <div class="detail-content">
+        <h1 class="main-title">รายละเอียดของกิจกรรม</h1>
+
+        <div class="detail-grid">
+          <div class="detail-group">
+            <p class="detail-label">ชั่วโมงที่จะได้รับจากกิจกรรม</p>
+            <div id="activity-hours" class="detail-value-box"></div>
+          </div>
+
+          <div class="detail-group">
+            <p class="detail-label">สถานที่จัดกิจกรรม</p>
+            <div id="activity-location" class="detail-value-box"></div>
+          </div>
+
+          <div class="detail-group detail-full-width">
+            <p class="detail-label">วันที่และเวลาต้องเข้าร่วมกิจกรรม</p>
+            <p id="activity-date-display" class="detail-value-large"></p>
+            <p id="activity-time-display" class="detail-value-large"></p>
+          </div>
+
+          <div class="detail-group">
+            <button id="show-form-button" class="action-button" style="display: none;">รายละเอียดเพิ่มเติม</button>
+          </div>
+
+          <div class="detail-group">
+            <button id="join-button" class="action-button" style="display: none;">
+              เข้าร่วมกิจกรรม
+            </button>
+            <button id="cancel-button" class="action-button" style="display: none; background-color: #dc3545;">
+              ยกเลิกการเข้าร่วม
+            </button>
+          </div>
+
+          <div class="detail-group">
+            <button id="request-hours-button" class="action-button" style="display: none; background-color: #28a745;">
+              ยื่นรับเวลากิจกรรม
+            </button>
+            <div id="request-status" style="display: none; padding: 10px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; color: #856404; text-align: center; margin-top: 10px;">
+              <i class="fas fa-clock"></i> <span id="status-text">รอรับเรื่อง</span>
+            </div>
+            <div id="approved-status" style="display: none; padding: 15px; background-color: #d4edda; border: 1px solid #28a745; border-radius: 5px; color: #155724; text-align: center; margin-top: 10px;">
+              <i class="fas fa-check-circle"></i> <span id="approved-text">คุณได้รับการยืนยันแล้ว</span>
+              <button id="view-approved-details-btn" class="action-button" style="margin-top: 10px; background-color: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer;">
+                <i class="fas fa-eye"></i> ดูรายละเอียด
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div id="registration-form" class="form-section">
+          <p class="form-title">Form สำหรับลงทะเบียนเข้าร่วมกิจกรรม</p>
+          <div class="form-link-box">
+            link :
+            <a href="#" target="_blank" class="register-link"></a>
+          </div>
+        </div>
+
+            <p class="closing-note">โปรดแต่งกายสุภาพ</p>
+          </div>
+        </div>
+      </main>
+
+      <aside class="side-dashboard" id="sideDashboard">
+        <div class="profile-box">
+          <div class="profile-image-container" id="profileImageContainer">
+            <img
+              src="../images/logos/spu_logo.png"
+              alt="Profile Picture"
+              class="profile-image"
+              id="profileImage"
+              onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%22120%22%3E%3Ccircle cx=%2260%22 cy=%2260%22 r=%2260%22 fill=%22%23e91e63%22/%3E%3Ctext x=%2260%22 y=%2270%22 font-size=%2240%22 text-anchor=%22middle%22 fill=%22white%22%3E%3F%3C/text%3E%3C/svg%3E'"
+            />
+            <div class="profile-image-overlay">
+              <i class="fas fa-camera"></i>
+              <span>คลิกเพื่อเปลี่ยนรูป</span>
+            </div>
+            <input type="file" id="profileImageInput" accept="image/*" style="display: none;" />
+          </div>
+
+          <div class="profile-details">
+            <p id="student-name">ชื่อ : <span id="student-name-value">-</span></p>
+            <p>Student id : <span id="student-id-value">68000000</span></p>
+            <p id="student-faculty">คณะ : Information Technology</p>
+            <p id="student-major">สาขา : Computer Science</p>
+          </div>
+        </div>
+
+        <div class="progress-section">
+          <p class="progress-type-title">
+            ชั่วโมงกิจกรรมประเภท : กิจกรรมจิตสาธารณะ กยศ.
+          </p>
+          <div class="circular-progress-container">
+            <svg
+              class="circular-progress"
+              width="150"
+              height="150"
+              viewBox="0 0 150 150"
+            >
+              <circle class="bg" cx="75" cy="75" r="60"></circle>
+              <circle class="fg" cx="75" cy="75" r="60"></circle>
+            </svg>
+            <div class="progress-text-center">
+              <span class="percentage">70%</span>
+              <span class="hours-text">70 / 72 Hours</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="logout-section">
+          <button id="logoutBtn" class="logout-button">
+            <i class="fas fa-sign-out-alt"></i> ออกจากระบบ
+          </button>
+        </div>
+      </aside>
+    </div>
+
+    <!-- The Custom Modal -->
+    <div id="custom-modal" class="modal">
+      <div class="modal-content">
+        <span class="close-button">&times;</span>
+        <div id="modal-message-container"></div>
+      </div>
+    </div>
+
+    <script src="../js/activity.js"></script>
+    <script>
+      // Settings toggle functionality (same as dashboard)
+      const settingsToggle = document.getElementById('settingsToggle');
+      const sideDashboard = document.getElementById('sideDashboard');
+      let overlay = null;
+
+      if (settingsToggle && sideDashboard) {
+        settingsToggle.addEventListener('click', () => {
+          sideDashboard.classList.toggle('show');
+          settingsToggle.classList.toggle('active');
+          
+          if (sideDashboard.classList.contains('show')) {
+            // Create overlay
+            overlay = document.createElement('div');
+            overlay.className = 'dashboard-overlay';
+            document.body.appendChild(overlay);
+            
+            // Close on overlay click
+            overlay.addEventListener('click', () => {
+              sideDashboard.classList.remove('show');
+              settingsToggle.classList.remove('active');
+              if (overlay) {
+                overlay.remove();
+                overlay = null;
+              }
+            });
+          } else {
+            // Remove overlay
+            if (overlay) {
+              overlay.remove();
+              overlay = null;
+            }
+          }
+        });
+
+        // Close on Escape key
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && sideDashboard.classList.contains('show')) {
+            sideDashboard.classList.remove('show');
+            settingsToggle.classList.remove('active');
+            if (overlay) {
+              overlay.remove();
+              overlay = null;
+            }
+          }
+        });
+      }
+
+      // API Configuration (รองรับทั้ง local และ production)
+      const API_BASE_URL = window.location.origin + '/api';
+      
+      // Helper function for API calls
+      async function apiCall(endpoint, options = {}) {
+        try {
+          const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+            headers: {
+              'Content-Type': 'application/json',
+              ...options.headers
+            },
+            ...options
+          });
+          
+          if (!response.ok) {
+            throw new Error(`API Error: ${response.status} ${response.statusText}`);
+          }
+          
+          return await response.json();
+        } catch (error) {
+          console.error('API Call Error:', error);
+          throw error;
+        }
+      }
+
+      // ฟังก์ชันคำนวณชั่วโมงทั้งหมดจากกิจกรรมที่ admin อนุมัติแล้วเท่านั้น
+      async function calculateTotalHours() {
+        try {
+          const studentInfo = JSON.parse(localStorage.getItem('spu-student-info') || '{}');
+          const studentId = studentInfo.studentId || localStorage.getItem('studentId') || '68000000';
+          
+          try {
+            const requests = await apiCall(`/hour-requests/student/${encodeURIComponent(studentId)}`);
+            
+            let totalHours = 0;
+            
+            // คำนวณชั่วโมงจากกิจกรรมที่ admin อนุมัติแล้วเท่านั้น (status = 'approved')
+            if (Array.isArray(requests)) {
+              requests.forEach(request => {
+                if (request.status === 'approved' && request.hours) {
+                  totalHours += parseInt(request.hours, 10);
+                }
+              });
+            }
+            
+            return totalHours;
+          } catch (error) {
+            // ถ้าไม่พบข้อมูล (404) หรือไม่มีข้อมูล ให้ return 0
+            if (error.message.includes('404')) {
+              return 0;
+            }
+            throw error;
+          }
+        } catch (error) {
+          console.error('Error calculating total hours:', error);
+          return 0;
+        }
+      }
+
+      // กำหนดค่า
+      const maxHours = 72; // ชั่วโมงสูงสุด
+      let currentHours = 0;
+      let percentage = 0;
+      
+      // อ้างอิง Element
+      const progressCircle = document.querySelector(".circular-progress .fg");
+      const percentageText = document.querySelector(".percentage");
+      const hoursText = document.querySelector(".hours-text");
+
+      // ฟังก์ชันอัปเดต Progress Circle
+      function updateProgressCircle() {
+        if (progressCircle && percentageText && hoursText) {
+          // คำนวณค่าทางคณิตศาสตร์ (สำหรับ Progress Bar)
+          const radius = 60; // รัศมี r="60" จาก HTML
+          const circumference = 2 * Math.PI * radius; // สูตร 2 * pi * r
+
+          // คำนวณค่า Offset
+          const offset = circumference - (percentage / 100) * circumference;
+
+          // อัปเดต SVG
+          progressCircle.style.strokeDasharray = circumference;
+          progressCircle.style.strokeDashoffset = offset;
+
+          // อัปเดตข้อความ
+          percentageText.textContent = `${Math.round(percentage)}%`;
+          hoursText.textContent = `${currentHours} / ${maxHours} Hours`;
+        }
+      }
+
+      // ฟังก์ชันอัปเดต Progress จาก API
+      async function updateDashboardProgress() {
+        currentHours = await calculateTotalHours();
+        percentage = Math.min((currentHours / maxHours) * 100, 100);
+        updateProgressCircle();
+      }
+
+      // Export function สำหรับอัปเดตจากภายนอก
+      window.updateDashboardProgress = updateDashboardProgress;
+
+      // Update progress bar when page loads
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          updateDashboardProgress();
+        }, 100);
+      });
+
+      // อัปเดต progress เมื่อโหลดหน้า
+      updateDashboardProgress();
+
+      // Load student info
+      function loadStudentInfo() {
+        const studentInfoStr = localStorage.getItem('spu-student-info');
+        if (studentInfoStr) {
+          try {
+            const studentInfo = JSON.parse(studentInfoStr);
+            const studentNameValue = document.getElementById('student-name-value');
+            const studentIdValue = document.getElementById('student-id-value');
+            const facultyElement = document.getElementById('student-faculty');
+            const majorElement = document.getElementById('student-major');
+            
+            if (studentNameValue && studentInfo.name) {
+              studentNameValue.textContent = studentInfo.name;
+            }
+            
+            if (studentIdValue && studentInfo.studentId) {
+              studentIdValue.textContent = studentInfo.studentId;
+            }
+
+            if (facultyElement && studentInfo.faculty) {
+              facultyElement.textContent = `คณะ : ${studentInfo.faculty}`;
+            }
+            
+            if (majorElement && studentInfo.major) {
+              majorElement.textContent = `สาขา : ${studentInfo.major}`;
+            }
+
+            // Load profile image
+            const profileImage = document.getElementById('profileImage');
+            if (profileImage) {
+              const savedImage = localStorage.getItem('profileImage');
+              if (savedImage) {
+                profileImage.src = savedImage;
+              }
+            }
+          } catch (e) {
+            console.error('Error loading student info:', e);
+          }
+        }
+      }
+
+      // Load student info on page load
+      loadStudentInfo();
+
+      // Logout functionality
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', function() {
+          if (confirm('คุณต้องการออกจากระบบหรือไม่?')) {
+            localStorage.removeItem('studentId');
+            localStorage.removeItem('spu-joined-activities');
+            localStorage.removeItem('profileImage');
+            localStorage.removeItem('spu-student-info');
+            localStorage.removeItem('spu-user-info');
+            window.location.href = '../login.html';
+          }
+        });
+      }
+
+      // Profile image upload functionality
+      const profileImageContainer = document.getElementById('profileImageContainer');
+      const profileImageInput = document.getElementById('profileImageInput');
+      const profileImage = document.getElementById('profileImage');
+
+      if (profileImageContainer && profileImageInput) {
+        profileImageContainer.addEventListener('click', function() {
+          profileImageInput.click();
+        });
+      }
+
+      if (profileImageInput && profileImage) {
+        profileImageInput.addEventListener('change', function(e) {
+          const file = e.target.files[0];
+          if (file) {
+            if (!file.type.startsWith('image/')) {
+              alert('กรุณาเลือกไฟล์ภาพเท่านั้น');
+              return;
+            }
+
+            if (file.size > 5 * 1024 * 1024) {
+              alert('ขนาดไฟล์ใหญ่เกินไป กรุณาเลือกไฟล์ที่เล็กกว่า 5MB');
+              return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+              const imageDataUrl = event.target.result;
+              localStorage.setItem('profileImage', imageDataUrl);
+              profileImage.src = imageDataUrl;
+            };
+
+            reader.onerror = function() {
+              alert('เกิดข้อผิดพลาดในการอ่านไฟล์');
+            };
+
+            reader.readAsDataURL(file);
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

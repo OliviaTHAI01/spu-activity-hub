@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SPU Activity Dashboard</title>
+    <link rel="stylesheet" href="../css/dashboard.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+  </head>
+  <body>
+    <div class="dashboard-container">
+      <i class="fas fa-cog settings-icon" id="settingsToggle"></i>
+      <main class="main-content">
+        <div class="search-bar">
+          <p>สามารถค้นหากิจกรรมได้ที่นี่</p>
+          <div class="search-input-group">
+            <input type="text" id="searchInput" placeholder="ค้นหากิจกรรม..." />
+            <i class="fas fa-search"></i>
+          </div>
+          <button id="find-nearest-btn" class="find-nearest-btn" style="margin-top: 10px; padding: 10px 20px; background-color: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
+            <i class="fas fa-map-marker-alt"></i> ค้นหากิจกรรมที่ใกล้ที่สุด
+          </button>
+        </div>
+
+        <div class="activity-grid" id="activity-grid">
+          <!-- Activities will be loaded dynamically from admin -->
+        </div>
+      </main>
+
+      <aside class="side-dashboard" id="sideDashboard">
+        <div class="profile-box">
+          <div class="profile-image-container" id="profileImageContainer">
+              <img
+              src="../images/logos/spu_logo.png"
+              alt="Profile Picture"
+              class="profile-image"
+              id="profileImage"
+              onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%22120%22%3E%3Ccircle cx=%2260%22 cy=%2260%22 r=%2260%22 fill=%22%23e91e63%22/%3E%3Ctext x=%2260%22 y=%2270%22 font-size=%2240%22 text-anchor=%22middle%22 fill=%22white%22%3E%3F%3C/text%3E%3C/svg%3E'"
+            />
+            <div class="profile-image-overlay">
+              <i class="fas fa-camera"></i>
+              <span>คลิกเพื่อเปลี่ยนรูป</span>
+            </div>
+            <input type="file" id="profileImageInput" accept="image/*" style="display: none;" />
+          </div>
+
+          <div class="profile-details">
+            <p id="student-name">ชื่อ : <span id="student-name-value">-</span></p>
+            <p>Student id : <span id="student-id-value">68000000</span></p>
+            <p>คณะ : Information Technology</p>
+            <p>สาขา : Computer Science</p>
+          </div>
+        </div>
+
+        <div class="progress-section">
+          <p class="progress-type-title">
+            ชั่วโมงกิจกรรมประเภท : กิจกรรมจิตสาธารณะ กยศ.
+          </p>
+          <div class="circular-progress-container">
+            <svg
+              class="circular-progress"
+              width="150"
+              height="150"
+              viewBox="0 0 150 150"
+            >
+              <circle class="bg" cx="75" cy="75" r="60"></circle>
+              <circle class="fg" cx="75" cy="75" r="60"></circle>
+            </svg>
+            <div class="progress-text-center">
+              <span class="percentage">70%</span>
+              <span class="hours-text">70 / 72 Hours</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="logout-section">
+          <button id="logoutBtn" class="logout-button">
+            <i class="fas fa-sign-out-alt"></i> ออกจากระบบ
+          </button>
+        </div>
+      </aside>
+    </div>
+
+    <script src="../js/dashboard.js"></script>
+    <script>
+      // อัปเดต progress bar เมื่อกลับมาหน้า dashboard
+      window.addEventListener('focus', () => {
+        if (window.updateDashboardProgress) {
+          window.updateDashboardProgress();
+        }
+        // อัปเดตกิจกรรมเมื่อกลับมาหน้า
+        if (window.renderActivities) {
+          window.renderActivities();
+        }
+      });
+      
+      // อัปเดตเมื่อโหลดหน้า
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          if (window.updateDashboardProgress) {
+            window.updateDashboardProgress();
+          }
+        }, 100);
+      });
+      
+      // Export renderActivities function
+      if (typeof renderActivities !== 'undefined') {
+        window.renderActivities = renderActivities;
+      }
+    </script>
+  </body>
+</html>

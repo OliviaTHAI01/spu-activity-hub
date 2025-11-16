@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>สร้างตัวอย่างข้อมูลกิจกรรม - SPU Activity Hub</title>
+    <style>
+        body {
+            font-family: 'Sarabun', sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #3C425C;
+            margin-bottom: 20px;
+        }
+        .info-box {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196F3;
+        }
+        .info-box h3 {
+            margin-top: 0;
+            color: #1976D2;
+        }
+        .info-box ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .btn {
+            background-color: #8C98D6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: background-color 0.3s;
+        }
+        .btn:hover {
+            background-color: #7a86bf;
+        }
+        .btn-success {
+            background-color: #28a745;
+        }
+        .btn-success:hover {
+            background-color: #218838;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #8C98D6;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 สร้างตัวอย่างข้อมูลกิจกรรม</h1>
+        
+        <div class="info-box">
+            <h3>ข้อมูลตัวอย่างที่จะสร้าง:</h3>
+            <ul>
+                <li><strong>ชื่อกิจกรรม:</strong> SPU SIT Tech Talk: The Rise of AI-Powered Freelancer</li>
+                <li><strong>คำอธิบาย:</strong> เมื่อ AI คือแรงขับเคลื่อนใหม่ของอาชีพไอที</li>
+                <li><strong>รูปภาพ:</strong> ps0.jpg</li>
+                <li><strong>ชั่วโมง:</strong> 2 ชั่วโมง</li>
+                <li><strong>จำนวนที่รับ:</strong> 50 คน</li>
+                <li><strong>วันที่:</strong> 20 พฤศจิกายน 2568</li>
+                <li><strong>เวลา:</strong> 13:00 น.</li>
+            </ul>
+        </div>
+        
+        <button class="btn btn-success" onclick="createSampleActivity()">
+            ✅ สร้างตัวอย่างกิจกรรม
+        </button>
+        
+        <button class="btn" onclick="clearAllActivities()">
+            🗑️ ลบกิจกรรมทั้งหมด
+        </button>
+        
+        <div id="result" class="result"></div>
+        
+        <a href="index.html" class="back-link">← กลับไปหน้า Dashboard</a>
+    </div>
+
+    <script>
+        const ACTIVITIES_STORAGE_KEY = 'spu-activities';
+        
+        function showResult(message, isSuccess) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = message;
+            resultDiv.className = 'result ' + (isSuccess ? 'success' : 'error');
+            resultDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                resultDiv.style.display = 'none';
+            }, 5000);
+        }
+        
+        function createSampleActivity() {
+            // ตัวอย่างกิจกรรม 1: SPU SIT Tech Talk
+            const sampleActivity = {
+                title: "SPU SIT Tech Talk: The Rise of AI-Powered Freelancer",
+                desc: "เมื่อ AI คือแรงขับเคลื่อนใหม่ของอาชีพไอที - กิจกรรมบรรยายการพูดคุยเกี่ยวกับการพัฒนาของเทคโนโลยีในปัจจุบัน โดย CK Cheong CEO ของ Fastwork",
+                imgUrl: "../../images/posters/ps0.jpg",
+                formLink: "https://forms.gle/example",
+                hours: "2",
+                slots: "50",
+                date: "2025-11-20", // 20 พฤศจิกายน 2568
+                time: "13:00"
+            };
+            
+            try {
+                // ตรวจสอบว่ามีข้อมูลอยู่แล้วหรือไม่
+                const existingActivities = JSON.parse(localStorage.getItem(ACTIVITIES_STORAGE_KEY) || '[]');
+                
+                // ตรวจสอบว่ามีกิจกรรมนี้อยู่แล้วหรือไม่
+                const activityExists = existingActivities.some(act => act.title === sampleActivity.title);
+                
+                if (!activityExists) {
+                    // เพิ่มตัวอย่างกิจกรรม
+                    existingActivities.unshift(sampleActivity);
+                    localStorage.setItem(ACTIVITIES_STORAGE_KEY, JSON.stringify(existingActivities));
+                    
+                    showResult(`✅ เพิ่มตัวอย่างกิจกรรมสำเร็จ!\n\nชื่อ: ${sampleActivity.title}\nชั่วโมง: ${sampleActivity.hours} ชั่วโมง\nจำนวนที่รับ: ${sampleActivity.slots} คน\nวันที่: 20 พฤศจิกายน 2568 เวลา 13:00 น.`, true);
+                    
+                    console.log('✅ เพิ่มตัวอย่างกิจกรรมสำเร็จ:', sampleActivity);
+                } else {
+                    showResult('ℹ️ กิจกรรมนี้มีอยู่แล้วในระบบ', false);
+                }
+            } catch (error) {
+                showResult('❌ เกิดข้อผิดพลาด: ' + error.message, false);
+                console.error('Error:', error);
+            }
+        }
+        
+        function clearAllActivities() {
+            if (confirm('คุณแน่ใจหรือไม่ว่าต้องการลบกิจกรรมทั้งหมด?\n\nการลบนี้จะลบข้อมูลทั้งหมดรวมถึงรายชื่อผู้เข้าร่วมด้วย')) {
+                localStorage.removeItem(ACTIVITIES_STORAGE_KEY);
+                localStorage.removeItem('spu-participants');
+                localStorage.removeItem('spu-joined-activities');
+                showResult('✅ ลบกิจกรรมทั้งหมดสำเร็จ', true);
+            }
+        }
+    </script>
+</body>
+</html>
+

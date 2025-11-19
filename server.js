@@ -256,6 +256,27 @@ app.get('/api/activities', async (req, res) => {
   }
 });
 
+// Get archived activities only
+app.get('/api/activities/archived', async (req, res) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        error: 'Database not connected',
+        details: 'MongoDB connection is not established. Please check your MONGODB_URI environment variable.'
+      });
+    }
+
+    const activities = await Activity.find({ isArchived: true }).sort({ archivedDate: -1, createdAt: -1 });
+    res.json(activities);
+  } catch (error) {
+    console.error('Error fetching archived activities:', error);
+    res.status(500).json({
+      error: error.message,
+      details: 'Failed to fetch archived activities from database'
+    });
+  }
+});
+
 // Get single activity
 app.get('/api/activities/:title', async (req, res) => {
   try {

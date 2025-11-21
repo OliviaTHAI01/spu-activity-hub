@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
+const { MongoMemoryServer } = require('mongodb-memory-server');
+const compression = require('compression');
 
 const app = express();
 
@@ -10,14 +12,14 @@ const app = express();
 const MAX_BODY_SIZE = process.env.MAX_BODY_SIZE || '20mb';
 
 // CORS Configuration - รองรับทั้ง development และ production
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
+const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',')
   : [
-      'http://localhost:3000',
-      'http://localhost:5500',
-      'http://127.0.0.1:3000',
-      'http://127.0.0.1:5500'
-    ];
+    'http://localhost:3000',
+    'http://localhost:5500',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5500'
+  ];
 
 // เพิ่ม production domains อัตโนมัติ (Railway, Render, Vercel)
 if (process.env.RAILWAY_PUBLIC_DOMAIN) {
@@ -47,6 +49,10 @@ app.use(cors({
   },
   credentials: true
 }));
+
+// Enable gzip compression for all responses
+app.use(compression());
+
 app.use(express.json({ limit: MAX_BODY_SIZE }));
 app.use(express.urlencoded({ extended: true, limit: MAX_BODY_SIZE }));
 
@@ -54,7 +60,7 @@ app.use(express.urlencoded({ extended: true, limit: MAX_BODY_SIZE }));
 // This intercepts responses and removes the CSP header set by express.static
 app.use((req, res, next) => {
   const originalSetHeader = res.setHeader;
-  res.setHeader = function(name, value) {
+  res.setHeader = function (name, value) {
     // Remove the restrictive CSP header that blocks DevTools
     if (name && name.toLowerCase() === 'content-security-policy') {
       return; // Don't set the CSP header
@@ -103,69 +109,50 @@ app.get('/admin', (req, res) => {
 // รองรับทั้ง localhost, Render Internal Database, และ MongoDB Atlas
 let MONGODB_URI = process.env.MONGODB_URI;
 
-// ถ้าไม่มี MONGODB_URI ให้ใช้ default (สำหรับ local development)
-if (!MONGODB_URI) {
-  MONGODB_URI = 'mongodb://localhost:27017/spu-activity-hub';
-  console.log('⚠️  MONGODB_URI not set, using default localhost (for development only)');
-}
+const connectDB = async () => {
+  try {
+    // 1. Try to use provided URI or default localhost
+    let currentURI = MONGODB_URI;
+    if (!currentURI) {
+      currentURI = 'mongodb://localhost:27017/spu-activity-hub';
+      console.log('⚠️  MONGODB_URI not set, using default localhost');
+    }
 
-// ตรวจสอบว่า MONGODB_URI ถูกตั้งค่าหรือไม่ (สำหรับ production)
-if (process.env.NODE_ENV === 'production' && !process.env.MONGODB_URI) {
-  console.error('❌ ERROR: MONGODB_URI environment variable is not set!');
-  console.error('❌ Please set MONGODB_URI in your hosting service environment variables.');
-  console.error('❌ For Render: Use Internal Database URL from MongoDB service');
-  console.error('❌ For MongoDB Atlas: Use connection string from Atlas dashboard');
-}
+    console.log(`🔄 Attempting to connect to MongoDB...`);
+    await mongoose.connect(currentURI, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
+    console.log('✅ Connected to MongoDB');
 
-// ตรวจสอบว่าใช้ localhost หรือไม่ (สำหรับ production)
-if (process.env.NODE_ENV === 'production' && MONGODB_URI.includes('localhost') && !MONGODB_URI.includes('mongo')) {
-  console.error('❌ WARNING: Using localhost MongoDB URI in production!');
-  console.error('❌ This will not work. Please set MONGODB_URI correctly:');
-  console.error('❌   - Render: Use Internal Database URL (mongodb://mongo:27017/...)');
-  console.error('❌   - MongoDB Atlas: Use connection string (mongodb+srv://...)');
-}
+    // Mask sensitive information in URI
+    const maskedURI = currentURI
+      .replace(/\/\/[^:]+:[^@]+@/, '//***:***@')
+      .replace(/mongodb\+srv:\/\/([^:]+):([^@]+)@/, 'mongodb+srv://***:***@');
+    console.log('📊 MongoDB URI:', maskedURI);
+    console.log('📊 Connection State:', mongoose.connection.readyState === 1 ? 'Connected' : 'Not Connected');
+    console.log('📊 Database:', mongoose.connection.db?.databaseName || 'Unknown');
 
-// MongoDB Connection Options
-const mongooseOptions = {
-  serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-  socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
-};
+  } catch (error) {
+    console.error('❌ MongoDB connection error:', error.message);
+    console.error('❌ MongoDB URI:', MONGODB_URI ? 'Set (but connection failed)' : 'NOT SET');
 
-mongoose.connect(MONGODB_URI, mongooseOptions)
-.then(() => {
-  console.log('✅ Connected to MongoDB');
-  // Mask sensitive information in URI
-  const maskedURI = MONGODB_URI
-    .replace(/\/\/[^:]+:[^@]+@/, '//***:***@')
-    .replace(/mongodb\+srv:\/\/([^:]+):([^@]+)@/, 'mongodb+srv://***:***@');
-  console.log('📊 MongoDB URI:', maskedURI);
-  console.log('📊 Connection State:', mongoose.connection.readyState === 1 ? 'Connected' : 'Not Connected');
-  console.log('📊 Database:', mongoose.connection.db?.databaseName || 'Unknown');
-})
-.catch((error) => {
-  console.error('❌ MongoDB connection error:', error.message);
-  console.error('❌ MongoDB URI:', MONGODB_URI ? 'Set (but connection failed)' : 'NOT SET');
-  
-  if (process.env.NODE_ENV === 'production') {
-    console.error('❌ Please check:');
-    console.error('   1. MONGODB_URI environment variable is set correctly');
-    
-    // ให้คำแนะนำตาม connection string
-    if (MONGODB_URI.includes('localhost') && !MONGODB_URI.includes('mongo')) {
-      console.error('   2. For Render: Use Internal Database URL from MongoDB service');
-      console.error('      Example: mongodb://mongo:27017/spu-activity-hub');
-    } else if (MONGODB_URI.includes('mongodb+srv://')) {
-      console.error('   2. MongoDB Atlas Network Access allows 0.0.0.0/0');
-      console.error('   3. Database user credentials are correct');
-    } else {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('❌ Please check:');
+      console.error('   1. MONGODB_URI environment variable is set correctly');
       console.error('   2. MongoDB service is running and accessible');
       console.error('   3. Database user credentials are correct');
+    } else {
+      console.error('💡 For local development: Make sure MongoDB is running');
+      console.error('   Run: mongod (or start MongoDB service)');
     }
-  } else {
-    console.error('💡 For local development: Make sure MongoDB is running');
-    console.error('   Run: mongod (or start MongoDB service)');
+
+    // ไม่มีการ Fallback ไปใช้ In-Memory Database
+    console.error('❌ Server requires a real MongoDB connection to function correctly.');
   }
-});
+};
+
+connectDB();
 
 // MongoDB Schemas
 const activitySchema = new mongoose.Schema({
@@ -226,6 +213,7 @@ const Student = mongoose.model('Student', studentSchema);
 // ==================== ACTIVITIES API ====================
 
 // Get all activities (with optional filters)
+// Optimized with compression and selective field loading
 app.get('/api/activities', async (req, res) => {
   try {
     if (mongoose.connection.readyState !== 1) {
@@ -235,7 +223,7 @@ app.get('/api/activities', async (req, res) => {
       });
     }
 
-    const { includeArchived, title, showAll } = req.query;
+    const { includeArchived, title, showAll, excludeImages } = req.query;
     const filter = {};
 
     if (!showAll) {
@@ -246,7 +234,25 @@ app.get('/api/activities', async (req, res) => {
       filter.title = title;
     }
 
-    const activities = await Activity.find(filter).sort({ createdAt: -1 });
+    // Selective field loading - exclude large image data if requested
+    let query = Activity.find(filter);
+
+    if (excludeImages === 'true') {
+      // Exclude imgUrl to reduce payload size for list views
+      query = query.select('-imgUrl');
+    }
+
+    const activities = await query
+      .sort({ createdAt: -1 })
+      .lean() // Convert to plain JavaScript objects for better performance
+      .exec();
+
+    // Set cache headers for better performance
+    res.set({
+      'Cache-Control': 'public, max-age=60', // Cache for 60 seconds
+      'Content-Type': 'application/json'
+    });
+
     res.json(activities);
   } catch (error) {
     console.error('Error fetching activities:', error);
@@ -288,16 +294,16 @@ app.get('/api/activities/archived', async (req, res) => {
 app.get('/api/activities/:title', async (req, res) => {
   // Prevent /archived from matching this route
   if (req.params.title === 'archived') {
-    return res.status(404).json({ 
-      error: 'Route conflict detected. Please use /api/activities/archived endpoint.' 
+    return res.status(404).json({
+      error: 'Route conflict detected. Please use /api/activities/archived endpoint.'
     });
   }
-  
+
   try {
     // Decode URL parameter to handle special characters
     let title = decodeURIComponent(req.params.title);
     title = title.trim();
-    
+
     const activity = await Activity.findOne({ title: title });
     if (!activity) {
       return res.status(404).json({ error: 'Activity not found' });
@@ -330,7 +336,7 @@ app.put('/api/activities/:title', async (req, res) => {
     let originalTitle = decodeURIComponent(req.params.title);
     // Remove any leading/trailing spaces
     originalTitle = originalTitle.trim();
-    
+
     const requestedTitle = typeof req.body.title === 'string' ? req.body.title.trim() : originalTitle;
 
     if (!requestedTitle) {
@@ -383,36 +389,36 @@ app.delete('/api/activities/:title', async (req, res) => {
     // Decode URL parameter to handle special characters
     let title = decodeURIComponent(req.params.title);
     title = title.trim();
-    
+
     console.log('DELETE request - Original param:', req.params.title, 'Decoded:', title);
-    
+
     // Try to find activity with exact title match
     let activity = await Activity.findOne({ title: title });
-    
+
     // If not found, try without trim (in case of whitespace issues)
     if (!activity) {
       activity = await Activity.findOne({ title: req.params.title });
     }
-    
+
     // If still not found, try case-insensitive search
     if (!activity) {
-      activity = await Activity.findOne({ 
+      activity = await Activity.findOne({
         title: { $regex: new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
       });
     }
-    
+
     if (!activity) {
       console.log('Activity not found. Available activities:', await Activity.find({}, 'title'));
       return res.status(404).json({ error: 'Activity not found', searchedTitle: title });
     }
-    
+
     // Delete the activity
     await Activity.findOneAndDelete({ _id: activity._id });
-    
+
     // Also delete related participants and hour requests
     await Participant.deleteMany({ activityTitle: activity.title });
     await HourRequest.deleteMany({ activityTitle: activity.title });
-    
+
     res.json({ message: 'Activity deleted successfully' });
   } catch (error) {
     console.error('Error deleting activity:', error);
@@ -426,19 +432,19 @@ app.post('/api/activities/:title/archive', async (req, res) => {
     // Decode URL parameter to handle special characters
     let title = decodeURIComponent(req.params.title);
     title = title.trim();
-    
+
     // Format date as Thai date string
     const now = new Date();
-    const thaiMonths = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 
-                       'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+    const thaiMonths = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+      'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
     const archivedDateStr = `${now.getDate()} ${thaiMonths[now.getMonth()]} ${now.getFullYear() + 543} เวลา ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} น.`;
-    
+
     const activity = await Activity.findOneAndUpdate(
       { title: title },
-      { 
-        isArchived: true, 
+      {
+        isArchived: true,
         archivedDate: archivedDateStr,
-        updatedAt: Date.now() 
+        updatedAt: Date.now()
       },
       { new: true }
     );
@@ -457,13 +463,13 @@ app.post('/api/activities/:title/restore', async (req, res) => {
     // Decode URL parameter to handle special characters
     let title = decodeURIComponent(req.params.title);
     title = title.trim();
-    
+
     const activity = await Activity.findOneAndUpdate(
       { title: title },
-      { 
-        isArchived: false, 
+      {
+        isArchived: false,
         archivedDate: '',
-        updatedAt: Date.now() 
+        updatedAt: Date.now()
       },
       { new: true }
     );
@@ -502,33 +508,33 @@ app.get('/api/participants/student/:studentId', async (req, res) => {
 app.post('/api/participants', async (req, res) => {
   try {
     const { activityTitle, studentId } = req.body;
-    
+
     // ตรวจสอบว่ามีกิจกรรมนี้หรือไม่
     const activity = await Activity.findOne({ title: activityTitle });
     if (!activity) {
       return res.status(404).json({ error: 'Activity not found' });
     }
-    
+
     // ตรวจสอบว่าผู้ใช้เข้าร่วมแล้วหรือยัง
     const existingParticipant = await Participant.findOne({
       activityTitle: activityTitle,
       studentId: studentId
     });
-    
+
     if (existingParticipant) {
       return res.status(400).json({ error: 'คุณได้เข้าร่วมกิจกรรมนี้แล้ว' });
     }
-    
+
     // ตรวจสอบจำนวนผู้เข้าร่วมว่าครบหรือยัง
     const participantsCount = await Participant.countDocuments({ activityTitle: activityTitle });
     const maxSlots = parseInt(activity.slots, 10) || 10;
-    
+
     if (participantsCount >= maxSlots) {
-      return res.status(400).json({ 
-        error: `กิจกรรมนี้เต็มแล้ว (${participantsCount}/${maxSlots})` 
+      return res.status(400).json({
+        error: `กิจกรรมนี้เต็มแล้ว (${participantsCount}/${maxSlots})`
       });
     }
-    
+
     // เพิ่มผู้เข้าร่วม
     const participant = new Participant(req.body);
     await participant.save();
@@ -663,7 +669,7 @@ app.delete('/api/hour-requests/:id', async (req, res) => {
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    
+
     if (!username || !password) {
       return res.status(400).json({ error: 'Username and password are required' });
     }
@@ -681,7 +687,7 @@ app.post('/api/login', async (req, res) => {
 
     // ค้นหานักศึกษาจาก username
     const student = await Student.findOne({ username: username });
-    
+
     if (!student) {
       return res.status(401).json({ error: 'ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง' });
     }

@@ -436,6 +436,21 @@ document.addEventListener("DOMContentLoaded", () => {
       return [];
     }
   }
+
+  // Batch fetch participants for multiple activities (much faster)
+  async function getParticipantsBatch(activityTitles) {
+    try {
+      if (!activityTitles || activityTitles.length === 0) return {};
+      const response = await apiCall('/participants/batch', {
+        method: 'POST',
+        body: JSON.stringify({ activityTitles })
+      });
+      return response || {};
+    } catch (error) {
+      console.error('Error fetching participants batch:', error);
+      return {};
+    }
+  }
   
   function getJoinedActivities() {
     // ยังใช้ localStorage สำหรับเก็บรายการที่ join แล้ว (เฉพาะในฝั่ง client)
@@ -481,9 +496,16 @@ document.addEventListener("DOMContentLoaded", () => {
       const studentInfo = JSON.parse(localStorage.getItem('spu-student-info') || '{}');
       const studentId = studentInfo.studentId || localStorage.getItem('studentId') || '68000000';
       
-      // รอข้อมูล participants สำหรับทุกกิจกรรม
+      // ดึงข้อมูล participants แบบ batch (เร็วกว่ามาก!)
+      const activityTitles = activities.map(a => a.title);
+      const participantsBatch = await getParticipantsBatch(activityTitles);
+      if (renderToken !== activitiesRenderToken) {
+        return;
+      }
+      
+      // Render activities
       for (const activity of activities) {
-        const participants = await getActivityParticipants(activity.title);
+        const participants = participantsBatch[activity.title] || [];
         if (renderToken !== activitiesRenderToken) {
           return;
         }
@@ -511,7 +533,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const cardHTML = `
         <div class="activity-card ${isFull ? 'full-card' : ''}" data-title="${activity.title}">
           <a href="activity.html?title=${encodeURIComponent(activity.title)}" class="card-image-link">
-            <img src="${activity.imgUrl || ''}" alt="${activity.title}" class="card-image" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22225%22%3E%3Crect width=%22400%22 height=%22225%22 fill=%22%23f0f0f0%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-size=%2218%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22%3Eไม่มีรูปภาพ%3C/text%3E%3C/svg%3E';" />
+            <img src="${activity.imgUrl || ''}" alt="${activity.title}" class="card-image" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22225%22%3E%3Crect width=%22400%22 height=%22225%22 fill=%22%23f0f0f0%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-size=%2218%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22%3Eไม่มีรูปภาพ%3C/text%3E%3C/svg%3E';" />
           </a>
           <div class="progress-bar-container">
             <div class="progress-bar" style="width: ${progressPercent}%"></div>
@@ -579,13 +601,35 @@ document.addEventListener("DOMContentLoaded", () => {
   // Export renderActivities function for external use
   window.renderActivities = renderActivities;
   
-  // Auto-refresh activities every 30 seconds
-  setInterval(() => {
-    renderActivities();
-    if (window.updateDashboardProgress) {
-      window.updateDashboardProgress();
+  // Auto-refresh activities every 60 seconds (reduced frequency for better performance)
+  // Only refresh if page is visible
+  let refreshInterval = null;
+  function startAutoRefresh() {
+    if (refreshInterval) clearInterval(refreshInterval);
+    refreshInterval = setInterval(() => {
+      // Only refresh if page is visible
+      if (!document.hidden) {
+        renderActivities();
+        if (window.updateDashboardProgress) {
+          window.updateDashboardProgress();
+        }
+      }
+    }, 60000); // 60 seconds instead of 30
+  }
+  
+  // Pause refresh when page is hidden
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+      }
+    } else {
+      startAutoRefresh();
     }
-  }, 30000);
+  });
+  
+  startAutoRefresh();
   
   // Listen for custom activity joined event
   window.addEventListener('activityJoined', (e) => {
@@ -713,9 +757,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const studentInfo = JSON.parse(localStorage.getItem('spu-student-info') || '{}');
     const studentId = studentInfo.studentId || localStorage.getItem('studentId') || '68000000';
     
-    // รอข้อมูล participants สำหรับทุกกิจกรรม
+    // ดึงข้อมูล participants แบบ batch (เร็วกว่ามาก!)
+    const activityTitles = activities.map(a => a.title);
+    const participantsBatch = await getParticipantsBatch(activityTitles);
+    if (renderToken !== activitiesRenderToken) {
+      return;
+    }
+    
+    // Render activities
     for (const activity of activities) {
-      const participants = await getActivityParticipants(activity.title);
+      const participants = participantsBatch[activity.title] || [];
       if (renderToken !== activitiesRenderToken) {
         return;
       }
@@ -742,7 +793,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const cardHTML = `
         <div class="activity-card ${isFull ? 'full-card' : ''}" data-title="${activity.title}">
           <a href="activity.html?title=${encodeURIComponent(activity.title)}" class="card-image-link" style="display: block; cursor: pointer;">
-            <img src="${activity.imgUrl || ''}" alt="${activity.title}" class="card-image" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22225%22%3E%3Crect width=%22400%22 height=%22225%22 fill=%22%23f0f0f0%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-size=%2218%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22%3Eไม่มีรูปภาพ%3C/text%3E%3C/svg%3E';" />
+            <img src="${activity.imgUrl || ''}" alt="${activity.title}" class="card-image" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22225%22%3E%3Crect width=%22400%22 height=%22225%22 fill=%22%23f0f0f0%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 font-size=%2218%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22%3Eไม่มีรูปภาพ%3C/text%3E%3C/svg%3E';" />
           </a>
           <div class="progress-bar-container">
             <div class="progress-bar" style="width: ${progressPercent}%"></div>
@@ -947,6 +998,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const searchInput = document.getElementById("searchInput");
   
   if (searchInput) {
+    // Debounce function for search
+    let searchTimeout = null;
+    function debounceSearch(func, delay) {
+      return function(...args) {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => func.apply(this, args), delay);
+      };
+    }
+    
     // ฟังก์ชันค้นหา
     function performSearch() {
       const searchTerm = searchInput.value.toLowerCase().trim();
@@ -976,8 +1036,8 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
     
-    // ฟังเหตุการณ์เมื่อผู้ใช้พิมพ์ (real-time search)
-    searchInput.addEventListener("input", performSearch);
+    // ฟังเหตุการณ์เมื่อผู้ใช้พิมพ์ (real-time search with debounce)
+    searchInput.addEventListener("input", debounceSearch(performSearch, 300));
     
     // ฟังเหตุการณ์เมื่อกด Enter
     searchInput.addEventListener("keypress", (e) => {

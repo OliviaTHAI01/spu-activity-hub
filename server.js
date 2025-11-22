@@ -2,12 +2,26 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
+const compression = require('compression');
 require('dotenv').config();
 
 const app = express();
 
 // Middleware
 const MAX_BODY_SIZE = process.env.MAX_BODY_SIZE || '20mb';
+
+// Enable compression for all responses
+app.use(compression({
+  level: 6, // Compression level (1-9, 6 is a good balance)
+  filter: (req, res) => {
+    // Don't compress if client doesn't support it
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    // Use compression for all other requests
+    return compression.filter(req, res);
+  }
+}));
 
 // CORS Configuration - รองรับทั้ง development และ production
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
@@ -69,7 +83,15 @@ app.use(express.static(path.join(__dirname), {
   setHeaders: (res, filePath) => {
     // Remove CSP header for all static files to allow DevTools
     res.removeHeader('Content-Security-Policy');
-  }
+    
+    // Add caching headers for static assets
+    if (filePath.match(/\.(jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot)$/)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable'); // 1 year for images/fonts
+    } else if (filePath.match(/\.(css|js)$/)) {
+      res.setHeader('Cache-Control', 'public, max-age=86400'); // 1 day for CSS/JS
+    }
+  },
+  maxAge: '1d' // Default cache for static files
 }));
 
 // Handle Chrome DevTools well-known endpoint (optional, suppresses CSP warning)
@@ -223,7 +245,41 @@ const Participant = mongoose.model('Participant', participantSchema);
 const HourRequest = mongoose.model('HourRequest', hourRequestSchema);
 const Student = mongoose.model('Student', studentSchema);
 
+// Create indexes for better query performance
+Activity.collection.createIndex({ title: 1 });
+Activity.collection.createIndex({ isArchived: 1 });
+Activity.collection.createIndex({ createdAt: -1 });
+Participant.collection.createIndex({ activityTitle: 1, studentId: 1 });
+Participant.collection.createIndex({ studentId: 1 });
+HourRequest.collection.createIndex({ activityTitle: 1 });
+HourRequest.collection.createIndex({ studentId: 1 });
+HourRequest.collection.createIndex({ status: 1 });
+Student.collection.createIndex({ username: 1 });
+Student.collection.createIndex({ studentId: 1 });
+
 // ==================== ACTIVITIES API ====================
+
+// Simple in-memory cache for activities (5 minutes TTL)
+const activitiesCache = {
+  data: null,
+  timestamp: null,
+  ttl: 5 * 60 * 1000 // 5 minutes
+};
+
+function getCachedActivities() {
+  if (activitiesCache.data && activitiesCache.timestamp) {
+    const age = Date.now() - activitiesCache.timestamp;
+    if (age < activitiesCache.ttl) {
+      return activitiesCache.data;
+    }
+  }
+  return null;
+}
+
+function setCachedActivities(data) {
+  activitiesCache.data = data;
+  activitiesCache.timestamp = Date.now();
+}
 
 // Get all activities (with optional filters)
 app.get('/api/activities', async (req, res) => {
@@ -236,6 +292,21 @@ app.get('/api/activities', async (req, res) => {
     }
 
     const { includeArchived, title, showAll } = req.query;
+    
+    // Check cache only if no specific filters
+    if (!title && !showAll) {
+      const cached = getCachedActivities();
+      if (cached) {
+        // Filter cached data if needed
+        let filtered = cached;
+        if (includeArchived !== 'true') {
+          filtered = cached.filter(a => !a.isArchived);
+        }
+        res.setHeader('X-Cache', 'HIT');
+        return res.json(filtered);
+      }
+    }
+
     const filter = {};
 
     if (!showAll) {
@@ -246,7 +317,15 @@ app.get('/api/activities', async (req, res) => {
       filter.title = title;
     }
 
-    const activities = await Activity.find(filter).sort({ createdAt: -1 });
+    const activities = await Activity.find(filter).sort({ createdAt: -1 }).lean();
+    
+    // Cache only if no specific filters
+    if (!title && !showAll) {
+      setCachedActivities(activities);
+    }
+    
+    res.setHeader('X-Cache', 'MISS');
+    res.setHeader('Cache-Control', 'public, max-age=300'); // 5 minutes browser cache
     res.json(activities);
   } catch (error) {
     console.error('Error fetching activities:', error);
@@ -315,6 +394,9 @@ app.post('/api/activities', async (req, res) => {
   try {
     const activity = new Activity(req.body);
     await activity.save();
+    // Clear cache when activities are modified
+    activitiesCache.data = null;
+    activitiesCache.timestamp = null;
     // ตารางข้อมูลสำหรับ participants และ hour requests จะถูกสร้างอัตโนมัติ
     // เมื่อมีการเพิ่มข้อมูลครั้งแรก (MongoDB collections are created on first insert)
     res.status(201).json(activity);
@@ -371,6 +453,9 @@ app.put('/api/activities/:title', async (req, res) => {
       );
     }
 
+    // Clear cache when activities are modified
+    activitiesCache.data = null;
+    activitiesCache.timestamp = null;
     res.json(activity);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -413,6 +498,10 @@ app.delete('/api/activities/:title', async (req, res) => {
     await Participant.deleteMany({ activityTitle: activity.title });
     await HourRequest.deleteMany({ activityTitle: activity.title });
     
+    // Clear cache when activities are modified
+    activitiesCache.data = null;
+    activitiesCache.timestamp = null;
+    
     res.json({ message: 'Activity deleted successfully' });
   } catch (error) {
     console.error('Error deleting activity:', error);
@@ -445,6 +534,9 @@ app.post('/api/activities/:title/archive', async (req, res) => {
     if (!activity) {
       return res.status(404).json({ error: 'Activity not found' });
     }
+    // Clear cache when activities are modified
+    activitiesCache.data = null;
+    activitiesCache.timestamp = null;
     res.json(activity);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -470,6 +562,9 @@ app.post('/api/activities/:title/restore', async (req, res) => {
     if (!activity) {
       return res.status(404).json({ error: 'Activity not found' });
     }
+    // Clear cache when activities are modified
+    activitiesCache.data = null;
+    activitiesCache.timestamp = null;
     res.json(activity);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -481,8 +576,37 @@ app.post('/api/activities/:title/restore', async (req, res) => {
 // Get participants for an activity
 app.get('/api/participants/:activityTitle', async (req, res) => {
   try {
-    const participants = await Participant.find({ activityTitle: req.params.activityTitle });
+    const participants = await Participant.find({ activityTitle: req.params.activityTitle }).lean();
+    res.setHeader('Cache-Control', 'public, max-age=60'); // 1 minute cache
     res.json(participants);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get participants for multiple activities (batch endpoint for performance)
+app.post('/api/participants/batch', async (req, res) => {
+  try {
+    const { activityTitles } = req.body;
+    if (!Array.isArray(activityTitles)) {
+      return res.status(400).json({ error: 'activityTitles must be an array' });
+    }
+    
+    const participants = await Participant.find({
+      activityTitle: { $in: activityTitles }
+    }).lean();
+    
+    // Group by activityTitle
+    const grouped = {};
+    participants.forEach(p => {
+      if (!grouped[p.activityTitle]) {
+        grouped[p.activityTitle] = [];
+      }
+      grouped[p.activityTitle].push(p);
+    });
+    
+    res.setHeader('Cache-Control', 'public, max-age=60');
+    res.json(grouped);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
